@@ -10,7 +10,7 @@ List of files:
 3. Guidelines showing how your work will be graded > MHL_Assg_2_Grading
 4. Experiment data you need for analyses > Assg_2_experiment_output.csv
 5. Participant details you need for analyses > Assg_2_participant_data.csv
-6. A video explaining how to read into the experiment and the data > Explanation of the data.mov
+6. A video explaining how to read into the experiment and the data > Explanation of the data.mov (on BS)
 7. Example of stimuli used in the experiment > Stimuli example.png
 8. All the data (the tests) collected from the participants > Full Session
 
