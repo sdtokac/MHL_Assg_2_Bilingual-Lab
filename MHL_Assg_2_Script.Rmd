@@ -1,0 +1,450 @@
+---
+title: "Modelling of Human Language - Assignment 2 - Bilingual Language Processing"
+author: "Suzan Dilara Scheffer"
+date: "22-09-2025"
+output: html_document
+---
+
+The deadline for this lab is Monday 13.10.2025.
+
+## Introduction
+This is an R markdown file. In case you are not familiar with how they work: The file consists of code chunks and lines of text, which explain the code. You can run the code in R studio by clicking the little green play button on the top right of each chunk. 
+
+Usually, when using markdown files, you also compile everything into a pdf or html at the end by using the Knit button at the top. However, for this lab this is not necesarry as we mainly care about the way you report what you find, and most of the code will be given to you.
+
+## Setting Up
+This sets up the file. The second command will help cut down on processing time by saving interim results.  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup2, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
+Clear the memory with the following command:
+
+```{r remove}
+rm(list=ls(all=T))
+```
+
+You will need certain packages to analyze your data. Make sure they are loaded by using the require() command. 
+If it is your first time to open R Studio, you first need to install these packages with the install.packages command. 
+
+install.packages("ggplot2", "foreign", "languageR", "psych", "lme4","multcomp")
+
+If the command doesn't work, use Tools and install packages one by one. After that you should require the packages:
+
+```{r require_packages, warning=FALSE}
+require(ggplot2)
+require(psych)
+require(lme4)
+require(multcomp)
+require(languageR)
+```
+
+In R markdown, by default, the working directory for R code chunks is the directory that contains the Rmd document. 
+This means that if you put your data files and Rmd files in the same folder, you won't have to worry about giving directory information. 
+If you are using a regular R file for analysis, then you need to set the working directory to the current one. You can do this in Rstudio under the "Session" tab. 
+ 
+If you wonder what's in the directory you are working in you can use the dir() command:
+
+```{r}
+dir()
+```
+
+## Experiment
+
+In this experiment, we looked into the linguistic phenomenon known as evidentiality, which is the indication of the source or basis of information within an utterance. Specifically, evidentiality deals with whether the information presented is derived from direct perception, inference, or other sources. Our primary objective was to investigate how heritage language speakers process sentences with evidentiality markers in a self-paced reading experiment, while also examining the influence of various language background factors, such as age of acquisition and proficiency, on their judgments regarding sentence acceptability.
+
+We manipulated two factors: grammaticality and evidentiality. Grammaticality has two levels, with "mismatch" representing ungrammatical sentences and "match" representing grammatical sentences. Evidentiality, on the other hand, involved two different evidentiality markers, "direct" and "indirect," resulting in four distinct conditions: 
+SD (Seen-Direct: Matching Direct), HI (Heard-Indirect: Matching Indirect), HD* (Heard-Direct: Mismatch Direct), SI* (Seen Indirect: Mismatch Indirect). 
+Participants were presented with sentences from these conditions, and their self-paced reading responses and judgments were analyzed to shed light on the processing and acceptability of evidentiality in heritage language speakers. For a comprehensive list of experimental stimuli, please refer to the repository: https://github.com/sdtokac/Chapter-4_selfpacedreadingtask_stimuli.
+
+*Fillers*
+There were 30 filler sentences, but this data file does not include them. The fillers included equal numbers of grammatical sentences including either person/number disagreements or an incorrect choice of verbs with semantic incongruities.
+
+For this assignment we will analyze only the **Accuracy** (categorical data) results.
+
+## Loading the Data
+First we need to read in the datafile. This is usually in the form of a csv file (comma separated value file). 
+Sometimes .csv files are actually separated with a semicolon (or other delimiter). It's important that the separator R expects is the one the file uses.  
+
+Note that you can work with more than one datafile at a time. For this lab, there are two files.
+
+We will read in the file using read.csv(), and rather than having the output sent to the terminal (which would take forever to print and not be very useful, we'll create a data object we will call "expdat".  
+
+*As the data is from a self-paced reading experiment, the output shows multiple accuracy results for the same sentence, corresponding to different positions (word regions R1, R2, R2, etc.). For this Lab we only need one sentence accuracy result and not the word regions. Therefore, we subset the data (R7 is a random choice, could have been any other region), resulting in 5512 data points (104 sentences for 53 participants). 
+
+
+```{r getfile}
+expdat<- read.csv(file="Assg_2_experiment_output.csv", header=TRUE,sep=",")
+expdat = subset(expdat, Position == "R7")
+```
+
+Now we have a dataset called "expdat" only to analyze accuracy results. 
+
+There are series of useful commands in R that can help you get a general overview of the data.
+Check what the names of the variables (columns) are  using the  names() command:
+
+```{r}
+names(expdat)
+```
+
+Check that the data is correctly read by using summary() or str() commands.
+The str() command will tell you what the variable type is and shows the beginning of the file. 
+
+```{r}
+str(expdat)
+```
+The summary() command will perform some basic statistics on the quantifiable data in the file (integer or numeric data).
+```{r}
+summary(expdat)
+```
+
+We also would like to make use of the participant data that was gathered. For this purpose we will load the second data file.
+```{r}
+pardat<- read.csv(file="Assg_2_participant_data.csv", header=TRUE,sep=",")
+```
+
+If you inspect the two data frames, you can see that they both have a column called 'Participant'. We can use this to combine the two data frames into one.
+
+```{r}
+dat <- merge(expdat, pardat, by.x = "Participant", by.y = "Participant")
+```
+
+Now let's say you want to know more about one of the variables in the dataset. The dollar sign ("\$") is used to identify  a specified variable (a column in the datafile), so dat$Gender gives you information about Gender variable. Use the "head()" command to just see the first row of the list (otherwise it takes up quite a bit of room.)
+
+```{r}
+head(dat$Gender)
+```
+
+This isn't very useful here. On the one hand, you can sort of see what values this variable had, but on the other hand, you don't really need to see for each observation what the gender value was. Basically you want to know 1) what values exist for a given variable and 2) how many responses fall under that category. To see this you can use the table() command for a single variable: 
+
+```{r}
+table(dat$Gender)
+```
+
+In many cases it can be useful to know how many unique values of a given variable there are. For Gender, this isn't so interesting: there were only two, m and f. But if you determine the number of unique values for the Participant variable, it tells you how many people did the experiment: 
+
+```{r}
+length(unique(dat$Participant))
+```
+
+Before we move on, we should check for missing values. In R, missing values are represented by the symbol NA (not available). You can use is.na() to test for NA's.
+
+```{r}
+table(is.na(dat$Response))
+```
+
+Thankfully we don't have those here. 
+
+## Subsetting the data
+To make the analysis easier for you, we will only look at a subset of the data. 
+
+**TASK 1**
+Look at the column "Group". For this you can use the function list(unique()), similar to what we did above.
+
+```{r}
+# your code here
+```
+
+You can see we have two groups: HS (Heritage Speakers) and ES (Emigrant Speakers).
+For this assignment we will only be using the data collected from the HS, therefore we will exclude the data of the ES group.
+
+To do this, you need to use the command subset, in which you make a subset of your data set and you can store it as a new vector or the same one (but then you overwrite the old data. The advice is to save it as a new vector set, just to be on the safe side).
+
+**Important Note**
+If you're confident and interested in comparing the two groups, you can certainly keep it. 
+Just remember to ensure that you can correctly incorporate the group as an effect into your mixed-effects model.
+
+Now create a vector with only the values you want to include.
+```{r}
+dataHS = subset(dat, Group == "HS") 
+```
+
+In a real analysis, we would also exclude participants who either didn't complete the experiment, appear to be outliers, or seemingly were not paying attention, (or because we don't like them and believe they have weird ideas about bilinguals (* just kidding!)). If you wish, you can look for these in the data, but it is not required.
+
+## Biographical information
+In the "Methods" section, you have to report biographical data about the experimental participants. 
+
+First, you should see how many people did the test, what the mean age of the participants was (including the age range) and how many female/male participants there were. 
+
+**TASK 2** 
+Get the mean age, SD of age and range for reporting in the Methods.
+Make sure there are no missing values in Age. You can do this in the following set of commands.
+
+```{r}
+library(psych)
+agedataHS <- subset(dataHS, Age !="NA")
+agedataHS <- unique(agedataHS[,c("Participant","Age")])
+describe(agedataHS)
+```
+
+**TASK 3** 
+Get the gender information and create a new vector using the same method (you don't have to check for NA's). 
+You can use the following formula to check how many male/female participants did the test.
+
+with(genderdataHS,table(Gender))
+
+This does the same thing but only gives info for how many female participants
+
+length(which(genderdataHS$Gender =="F"))
+
+```{r}
+# your code here
+```
+
+
+## The Means
+Next, we are interested in reporting the means for each condition. We will be using the variables 'Grammaticality' and 'Evidential' as our factors. 
+For this we should convert these variables into factors, which can be done using the is.factor function.
+
+```{r}
+dataHS$Grammaticality <- as.factor(dataHS$Grammaticality)
+dataHS$Evidential <- as.factor(dataHS$Evidential)
+```
+
+Other data types are numeric and integer. Numeric variables are used for continuous data, including integers and decimals, while integer variables are specifically for whole numbers.
+
+**TASK 4**
+Are there any other variables it would make sense to convert to another data type?
+You can assess whether we require any additional data type conversions based on the provided variable information.
+If you think certain variables are in the wrong format, convert them as well.
+
+HINT: you can replace "factor" in as.factor with 'numeric' or 'integer'
+
+```{r}
+#your code here
+```
+
+
+**TASK 5**
+Let's get the mean accuracy for each of the condition combinations. You can do this by correctly modifying the code below:
+
+```{r}
+accuracy.mean <- with(dataHS,aggregate(list(Accuracy=Accuracy),list(Grammaticality=Grammaticality, Evidential=Evidential),mean))
+
+accuracy.mean
+```
+
+
+**TASK 6**
+Means need to also be reported together with a measurement indicating how much variation there was between participants, either *standard deviation* or *standard error*. 
+This is because two datasets might have the same mean, but differ quite a bit in the distribution of responses that lead to that mean. 
+
+Complete the code below to get the standard error values.
+
+```{r}
+standard_error <- function(x) sd(x) / sqrt(length(x)) # use this function
+
+accuracy.SE <- # fill in your code here
+
+accuracy.SE 
+```
+
+So now we have seen the means for the target conditions and the variation. But it's easier to interpret the results if they are presented graphically, in the form of a bar graph. Also, we can more easily see the structure of the data and the spread of responses across the participants with different types of graphical presentations. 
+
+## Making Plots
+Let's create some graphs. Scatter plots and histograms are not very informative for categorical data, so we will only make barplots for this lab.
+
+In the graphs we want to plot the means (accuracy.means) and standard error bars (accuracy.SE). But in order to do this, we actually need to put them into the same dataframe:
+
+```{r}
+df <- accuracy.mean
+
+df['SE'] <- accuracy.SE$Accuracy
+df
+```
+
+Now we load the plotting software and create a bar graph with standard error bars:
+
+```{r}
+library(ggplot2)
+require(plotly)
+
+ggplot(df, aes(x=Grammaticality, y=Accuracy, fill=Evidential)) +
+  geom_bar(position=position_dodge(), stat="identity",
+           colour='black') +
+  geom_errorbar(aes(ymin=Accuracy-SE, ymax=Accuracy+SE), width=.2,  position = position_dodge(.9))
+```
+We've now made the graph with all four conditions compared, comparing the grammaticality variable and the evidential variable. 
+
+**Task 7** 
+Now it is your turn. Pick a variable that you think would be interesting to investigate and report its mean and standard error values, in combination to the two factors You should also create a plot showcasing what you find, though it is up to you what kind of plot you use. Include your results and your plot in your report.
+
+To make it easier for yourself, we recommend using another categorical variable. If you want to use a continuous variable, like age for instance, it might be worth thinking about if you can somehow convert it into a categorical one.
+
+TIP: One way to add a third variable to a plot like the one above is to split your data into multiple sets manually by using the subset function, and then making separate plots. 
+
+dataHS1 <- subset(dataHS, VARIABLE == "VALUE")
+dataHS2 <- subset(dataHS, VARIABLE == "DIFFERENTVALUE")
+
+Alternatively, you can also let ggplot do this for you by using the facet_wrap() function.
+
+## Mixed-Effect Models
+Now that we've graphed the data, we need to move on to the actual statistical analysis. For the inferential statistical analysis we will use mixed effect models. We are going to check if the different conditions are statistically different from each other in how the participants reacted to them, and also check what factors best help explain the variation in the data.  
+A statistical model is a kind of equation that tells you what combination of the information you have about each observation in your data works best to predict the response variable. For us, this means, what combination of information that we have about each observation predicts whether participants responded correctly to an item. Here "information" means things like whether or not the sentence was a match or mismatch or if it was direct or indirect. These are factors we planned to test so of course we want to check if knowing their values helps predict the response to an individual item. 
+
+But the identity of the participant also matters: who responded? Perhaps their age or gender also have an effect. This is why in the data we include all the information associated with that trial that might be helpful in predicting what the response value will be: the identity of the experimental participant, some data about them, the features of the item and sometimes also things like the order in which it was presented. All these things might have an effect, and we should check for them. 
+
+We don't actually know what WILL have an effect, and that's where modelling comes in. We build statistical models that look at the entire dataset, examining how the features we select to investigate affect the responses given. The models we produce will then tell us which features were statistically significantly different from each other. 
+
+We can also vary what features we include in the models. Then, if we want to check if we need to keep a certain feature, we can statistically compare the two models, and choose the one that explains the most variance in the data. This is called model comparison. In statistical modelling, you create many, many models, with different variations of features, and then you compare them, until you find the maximally best model that explains the data. 
+
+To decide what factors we are going to check, we must consider the design of the experiment: Because the experiment was a 2x2 design, we had two factors, each with two levels, in mind that we thought will explain responses. Grammaticality (match or mismatch) and Evidential (direct or indirect). These are our two "Fixed Factors". Other examples of fixed factors could be the age of the participant, how early an item was shown to the participant or how the participant scored on a different test.
+
+However, there is always an element of variation in how people respond to the experimental materials. Some people may be very strict while others are more lenient, some may be fast, others slow at reading, etc. For this reason we include "Random Effects", for the Participant variable. There might also be an element of variation in the experimental items. For this reason we also included "Item" as a random effect in our models. However, if we compare models with items to models without, and they are the same, then we can remove "Item" as a random effect and make our models smaller. Note however, that you can never remove participant as a random factor. 
+
+WARNING: If a model fails to converge and you get some warning messages, try using different optimizers. bobyqa usually works. You can do this by adding control = glmerControl(optimizer="bobyqa") to the model code. If this doesn't work you can also try Nelder_Mead. However, if the model is really too complex, it will probably fail to converge despite the optimizers, and you should try a simpler model.  
+
+When we talk about a maximal model for the current experiment, in general we would include the two fixed factors, and the two random factors, as the set of predictors. Each model we create can then be evaluated as to how well it predicts the participant responses. But will the fixed factors be included as additive effects or as interaction effects? 
+
+Effects are additive if the combination of two factors doesn't differ from the contribution of one factor plus the contribution of the other. Let's say you have a headache. You could take medicine A for it, which cures 30% of your headache. But let's say there's also medicine B. Medicine B cures 50%. if you headache is really bad, and you want to get rid of it, you could take medicine A and B together. If together they cure 80% of the headache, then we speak of this as an additive effect. But it might be that there is some sort of magic interaction between Medicine A and Medicine B, such that even though they only cure 30% and 50% of a headache alone respectively, IF you take both, 100% of your headache will be gone. Together they have a boost, or added effect. This is called an interaction effect. 
+
+In our investigations, we always want to check if the fixed factors simply have an additive relationship, or if there is some sort of interaction between the levels.This means we will create both additive models and interaction models and compare them. 
+
+Before we get started, here's an overview of important symbols that will be used in making the models for reference:
+
+```{r}
+#'+' = ADDITIVE MODEL
+#'*'= LOOK FOR AN INTERACTION
+#'a ~ b'= TRY TO EXPLAIN THE VARIATION IN a BY THE FEATURES GIVEN IN b
+#'(1| name)' = USE DIFFERENT INTERCEPTS FOR EACH PERSON (random intercept for participant)
+#'(1| item)' = USE DIFFERENT INTERCEPTS FOR EACH ITEM (random intercept for item)
+```
+
+## LME4
+We will use the lme4 package. Because we are trying to predict a categorical variable (accurate or not) we will be making logistic models, so we will use the glmer() function in the lme4 package. To predict a continuous variable, like reaction times, we  instead use the lmer() function.
+
+**TASK 8**
+Let's start by creating a very simple model. This is going to be a "null" model, or "intercept only" model, because we are going to just try to predict the dependent variable based on the participant and the item. Here's the command you need. Note that family= binomial because we have a categorical response (0 or 1, accurate or not).
+
+```{r null_model}
+model_0 <- glmer(Accuracy ~ (1|Participant) + (1|Item), data=dataHS, family = binomial)
+summary(model_0)
+```
+
+There isn't really much to see with a null model like this. However, we can look at what the model output looks like:
+If you look at the bottom of the summary, you will see some information about the Fixed effects:
+
+The Estimate gives the value of how different one variable is from another. For continuous values these values are actual measurements (ms for RT data, etc), but in logistic regression these values are given as logs which makes it harder to interpret them (though there are formulas that transform them into more meaningful values). 
+
+The Z value is the regression coefficient divided by its standard error. If the z-value is too big in magnitude (i.e., either too positive or too negative), it indicates that the corresponding true regression coefficient is not 0 and the corresponding X-variable matters. A good rule of thumb is to use a cut-off value of 2 which approximately corresponds to a two-sided hypothesis test with a significance level of \alpha=0.05. 
+
+As mentioned, the null model is not very informative, but where it comes in handy is when we compare other models to it. Do take a moment to think about what it would mean if this model was the best out of all models.
+
+Now let's create an additive model with the two fixed factors. 
+
+```{r model_1}
+model_1 <- glmer(Accuracy ~ Grammaticality + Evidential + (1|Participant) + (1|Item), data=dataHS, family=binomial)
+summary(model_1)
+```
+
+Let's look at the fixed effect results. We can now see a list of factors, each given together with one of their levels. "GrammaticalityMismatch" stands for the factor "Grammaticality", in the "Mismatch" level. We can see under the "Estimate" that there is a negative number. This number shows a comparison between match and mismatch items. Because the number is negative here, it means that participants are significantly less likely to answer correctly on items which are grammatically mismatched than on those which are matched. We know that the difference is significant from the p-value in the final column (Pr(>|z|)), which is very small. We can similarly see that the evidental factor also has a significant effect on the accuracy.
+
+Now comes the model comparison part. We want to know if the model, which takes the two condition variables into account, can explain more variance than the model which only has information on who responded and what item was responded to (the null model). We can find out by comparing the two models with the anova command (anova command is not the same as ANOVA, which is a statistical test for variance):
+
+```{r}
+anova(model_0, model_1)
+```
+
+Zoom in on the bottom two rows. Here you can see model_0 has 3 parameters (the intercept, participant and item) and model_1 has five (add the two factors). All of the values: AIC, BIC, LogLik, Chisq, are measures of how well the model fits the data (i.e. how well it explains the variance). We tend to look at two values: The AIC scores and whether or not the difference was significant. We can see clearly in the last column that model_1 was significantly better than model_0. We can also see this in the AIC scores. Model_1 has a lower AIC score than model_0. In general, if a model is more than 2 points lower than another model in the AIC score, we prefer that model. If the AIC scores are the same or within two points, we choose the model with the fewer degrees of freedom (the simpler model. No sense in choosing a more complex model if its basically the same as a simpler one!)
+
+**TASK 9**
+Now let's create an interaction model. Take a moment to think about if you would expect an interaction of Grammaticality and Evidential. Then use * in place of the + to create an interaction model (call it model_2). Test if this model is preferable than model_1. 
+
+```{r}
+# your code here
+```
+
+
+**TASK 10**
+We also have two random effects, participant and item. But actually, we hope all our items are very comparable, and none of them stand out and show different responses. We can check if they are similar by creating a model without items, and then comparing the model to one with items to see if they are different. In this case, our hope is that the models are the same, so we can remove the random effect items from the models we are testing. 
+
+Take the current best model and compare it a version of that model without items. Determine whether or not you need to keep items. 
+
+```{r}
+# your code here
+```
+
+## Random slopes
+
+Individuals differ. Items might differ as well. For random effects we can take this variation into account in a more accurate way with something called "random slopes". You can add Random slopes to random factors. 
+
+For participants, what random slopes basically do is they ask the model to keep track if there are predictable differences in how individual subjects respond to the individual fixed factors. For example, maybe individual people behave differently when they see a matched or mismatched sentence. To try to keep track of this, we can add a random slope to the random factor. 
+
+Instead of (1|Participant) we write  (1 + Grammaticality |Participant). You can also include Sentence, e.g. (1 + Grammaticality + Evidential | Participant). You can even also include an interaction effect, if you think it might be significant. 
+
+**TASK 11**
+Check all possible combinations and compare them with anova. Choose what is the best final random slope model.
+
+Note: here's where you will likely get convergence errors. All these small comparisons might not going to be possible with the amount of data we have collected. Probably you will not be able to include random slopes, but part of statistical modelling is checking (sometimes you really do need them!) so you need to check all the combinations, compare them with anova() to determine what is the maximal model that best accounts for the data (with the lowest AIC score).
+
+## POST-HOC tests
+
+If you were able to find statistically significant interactions, it is important to know that you actually don't know what conditions differed from which other conditions. In order to tease apart these results, you have to do Post-hoc tests. This is where you determine where the interaction is present (which levels interact).
+
+NOTE: If you have signficant interactions, and if you have more than two levels for any variable participating in the significant interaction, you need to do a multiple level comparison as a post-hoc test. This can be done with  multcomp or lsmeans. 
+
+To run a post-hoc test, first, create an interaction variable made up of the two variables you want to check. These should be two fixed factors that showed a significant interaction in your maximally best model that you found above. 
+
+```{r}
+dataHS$FF1_FF2 <- interaction(dataHS$FF1, dataHS$FF2) # adjust this code
+```
+
+Then, create a model with the interaction variable (use the random factors that were left in the best model you found, including any random slopes)
+
+```{r}
+# the_best_model <- glmer(Accuracy ~ FF1_FF2 + .....
+```
+
+There are two ways to get the comparisons: Multcomp or lsmeans. Try them both: 
+```{r}
+library(multcomp)
+summary(glht(the_best_model, mcp(FF1_FF2="Tukey")))
+sign_contrast <- glht(the_best_model, linfct=mcp(FF1_FF2="Tukey")) 
+summary(sign_contrast)
+```
+```{r}
+library(lsmeans)
+lsmeans(BEST_RS_MODEL, pairwise~FF1*FF2, adjust="tukey")
+summary(glht(BEST_RS_MODEL, linfct = lsm(pairwise ~ FF1*FF2)))
+pairs(lsmeans(the_best_model, ~ FF1_FF2, adjust = "mvt"))
+```
+
+Now you can report what interactions were actually significant. But before you do this, we would like you to do one more thing:
+
+**TASK 12**
+Take the third variable which you used earlier to make a plot and add it as a fixed effect to your model. Look at the model summary for information about the significance and perform a model comparison to see if this improves the fit of your model. If you want, you can also go further and try and find interactions or random slopes for this variable, but it is not required.
+
+```{r}
+# your code here
+```
+
+
+Once you have your best model, get all the data and test values you need for your report.
+
+## Reporting the results
+
+Remember how estimates for logistic regression are logs of the values? You can use plogis command to interpret logit coefficients. You can type 1 if you want that level of a factor to be "switched on" and 0 if they want to exclude the levels from the calculations
+
+plogis(fixef(BEST_RS_MODEL)["(Intercept)"] + 1*fixef(BEST_RS_MODEL)[""] + 1*fixef(BEST_RS_MODEL)[""])
+
+You can also use round() to round up the coefficients
+
+round(summary()$coef,3)
+
+**TASK 13** 
+Explain the results using the information from the model. Say explictly what is significant and in what direction (e.g. significantly more accepted, not just "significantly different"), report the main effects and interactions (if there are any). Make sure that the names of the variables make sense, don't call anything "Condition1" or "Var1" (or whatever name you gave) because that will be uninterpretable to the reader. You should also include the model output as an Appendix.
+
+Here is the example text from another experiment on pronoun processing:
+
+We used a logistic mixed effects model and a stepwise variable deletion procedure, starting with the complete interaction model, and including random slopes. The best fitting model had Verb Type (NP1 or NP2) as a predictor, and the interaction between Verb Type and Pronoun Type (Stressed vs. Unstressed), as well as Random Slopes for Verb Type. NP2 verbs were significantly more likely to have object continuations than NP1 verbs (p < 0.000). The effect of Pronoun Type was not significant (p = 0.06). The model retaining the interaction between Verb Type and Pronoun Type was a better first, but pairwise comparisons showed no relevant, significant interaction effects. The complete model output is given in Appendix A.
+
+
+
+
+
+
